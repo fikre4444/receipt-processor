@@ -26,7 +26,7 @@ def generate_receipt_summary(raw_text: str, total: float | None, date: str | Non
         1. Identify the Merchant Name (Vendor) (If not available say unknown).
         2. Categorize the expense (e.g., Groceries, Travel, Dining, Office Supplies) (if not possible say could not categorize).
         3. Write a 1-sentence summary of the transaction.
-        The whole output shouldn't be no longer than 30 words.
+        The whole output shouldn't be no longer than 60 words.
         Format the output as a simple string, do not use Markdown.
         """
 

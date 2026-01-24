@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: receipt_api_dev
+    volumes:
+      - .:/code
+    ports:
+      - "8000:8000"
+    environment:
+      - TESSERACT_PATH=/usr/bin/tesseract
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - OPENROUTER_MODEL=${OPENROUTER_MODEL}
+      - BACKEND_CORS_ORIGINS=["http://localhost:5173"]
+
+  frontend:
+    build:
+      context: ./frontend-react
+      dockerfile: Dockerfile.dev
+    container_name: receipt_ui_dev
+    volumes:
+      - ./frontend-react:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8000

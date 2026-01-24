@@ -2,7 +2,7 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, status, Form
 import logging
 
 from app.schemas.receipt import ReceiptResponse
-from app.services import image_processing, ocr_engine, parser
+from app.services import analysis_service, image_processing, ocr_engine, parser
 from app.services import llm_service
 
 router = APIRouter()
@@ -31,6 +31,8 @@ async def process_receipt(file: UploadFile = File(...), generate_summary: bool =
         extracted_total = parser.extract_total(raw_text)
         extracted_date = parser.extract_date(raw_text)
 
+        audit_tags = analysis_service.analyze_receipt(extracted_total, extracted_date)
+
         summary_text = None
 
         if generate_summary: 
@@ -48,7 +50,8 @@ async def process_receipt(file: UploadFile = File(...), generate_summary: bool =
                 "total": extracted_total,
                 "date": extracted_date,
                 "summary": summary_text,
-                "raw_text": raw_text
+                "raw_text": raw_text,
+                "tags": audit_tags
             }
         }
 

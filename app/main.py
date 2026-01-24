@@ -11,9 +11,9 @@ app = FastAPI(
 
 #For Cors Policy
 origins = [
-    "http://localhost:5173",  # Vite default port
-    "http://localhost:3000",  # React default port
-    "*"                       # Allow all (for development simplicity)
+    "http://localhost:5173",
+    "https://*.github.io",     # Allow GitHub Pages
+    "*"
 ]
 
 app.add_middleware(
