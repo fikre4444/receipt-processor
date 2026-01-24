@@ -30,13 +30,13 @@ jobs:
           tags: ${{ secrets.DOCKER_USERNAME }}/receipt-processor-api:latest
           platforms: linux/amd64
 
-      - name: Install Railway CLI
-        run: npm install -g @railway/cli
+      # - name: Install Railway CLI
+      #   run: npm install -g @railway/cli
 
-      - name: Deploy to Railway
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        run: railway up --service receipt-processor-api --detach
+      # - name: Deploy to Railway
+      #   env:
+      #     RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      #   run: railway up --service receipt-processor-api --detach
 
   deploy-frontend:
     runs-on: ubuntu-latest

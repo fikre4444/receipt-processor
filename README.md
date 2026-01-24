@@ -1,10 +1,10 @@
 # Automated Receipt Processor
 
-A robust, full-stack internal tool designed to extract structured data (Total Amount, Date, Vendor) from receipt images. It features an automated **Compliance & Fraud Analysis** engine and an optional **GenAI** layer for contextual summarization.
+A robust, full-stack internal tool designed to extract structured data (Total Amount, Date, Vendor) from receipt images. It features an automated **Date and Category Analysis** engine and an optional **GenAI** layer for contextual summarization.
 
 ## 🚀 Project Overview
 
-This service accepts image uploads (JPG/PNG), pre-processes them using OpenCV, extracts text via Tesseract OCR, and applies a multi-strategy Regex parser. It provides immediate visual feedback via a React frontend and returns actionable compliance tags (e.g., "High Value", "Future Date").
+This service accepts image uploads (JPG/PNG), pre-processes them using OpenCV, extracts text via Tesseract OCR, and applies a multi-strategy Regex parser. It provides immediate visual feedback via a React frontend and returns actionable analysis tags (e.g., "High Value", "Future Date").
 
 ## 🛠 Tech Stack
 
@@ -21,7 +21,7 @@ This service accepts image uploads (JPG/PNG), pre-processes them using OpenCV, e
 1.  **Robust OCR Pipeline:** Uses Grayscale and Otsu's Thresholding to handle noisy images.
 2.  **Smart Parsing Logic:**
     *   **Total/Date:** Prioritizes context labels ("Total:", "Date:") with regex fallbacks.
-    *   **Compliance Engine:** Automatically flags receipts (e.g., `HIGH_VALUE`, `OLD_RECEIPT`, `MISSING_DATA`) using business logic defined in `analysis_service.py`.
+    *   **Analysis Service:** Automatically flags receipts (e.g., `HIGH_VALUE`, `OLD_RECEIPT`, `MISSING_DATA`) using business logic defined in `analysis_service.py`.
 3.  **Opt-in AI Analysis:** Users can enable LLM analysis to categorize expenses and summarize items. *Default is False to prioritize low latency.*
 4.  **Production Architecture:** Multi-stage Docker builds using Nginx for the frontend and optimized Python images for the backend.
 5.  **CI/CD Pipeline:** Fully automated deployment to Docker Hub, Railway/Render (Backend), and GitHub Pages (Frontend).
@@ -39,7 +39,7 @@ receipt-processor/
 │   ├── core/               # Configuration & Logging
 │   ├── schemas/            # Pydantic Models
 │   ├── services/
-│   │   ├── analysis_service.py # Compliance/Fraud Logic
+│   │   ├── analysis_service.py # Analysis Logic
 │   │   ├── image_processing.py # OpenCV Logic
 │   │   ├── llm_service.py      # OpenRouter/LLM Integration
 │   │   ├── ocr_engine.py       # Tesseract Wrapper
