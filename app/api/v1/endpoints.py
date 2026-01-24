@@ -14,6 +14,8 @@ async def process_receipt(file: UploadFile = File(...), generate_summary: bool =
     Accepts an image file (JPG/PNG), extracts text using OCR, 
     and parses the Total Amount and Date.
     """
+
+    logger.info(f"STARTING REQUEST: Processing file '{file.filename}' with AI={generate_summary}")
     
     if file.content_type not in ["image/jpeg", "image/png", "image/jpg"]:
         raise HTTPException(
