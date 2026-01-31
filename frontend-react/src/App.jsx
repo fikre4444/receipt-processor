@@ -46,6 +46,50 @@ function App() {
     }
   }
 
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  // Fetch history whenever mode changes to 'history'
+  useEffect(() => {
+    if (mode === 'history') {
+      fetchHistory();
+    }
+  }, [mode]);
+
+  const fetchHistory = async () => {
+    setHistoryLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/receipts/history`);
+      const data = await res.json();
+      setHistory(data);
+    } catch (err) {
+      console.error("Failed to fetch history", err);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const getFileUrl = (id) => `${API_BASE}/api/v1/receipts/${id}/file`;
+
+  const handleViewImageHistory = (item) => {
+    let url = "";
+    let isPdf = false;
+
+    if (item.id && !item.file) {
+      url = `${API_BASE}/api/v1/receipts/${item.id}/file`;
+      isPdf = item.filename?.toLowerCase().endsWith(".pdf");
+    } else {
+      url = item.preview || URL.createObjectURL(item.file);
+      isPdf = item.file?.type === "application/pdf" || item.filename?.toLowerCase().endsWith(".pdf");
+    }
+
+    if (isPdf) {
+      window.open(url, "_blank");
+    } else {
+      setModalImage(url);
+    }
+  };
+
   const clearAll = () => {
     setBulkFiles([]);
     setCompletedCount(0);
@@ -85,7 +129,7 @@ function App() {
 
             <div className="grid">
                 <div className="stat">
-                    <span>Total Amount</span>
+                    <span>Grand Total</span>
                     <strong className="total-main">${data.total?.toFixed(2) || '0.00'}</strong>
                 </div>
                 <div className="stat">
@@ -374,6 +418,9 @@ function App() {
         <div className={`mode-option ${mode === 'bulk' ? 'active' : ''}`} onClick={() => setMode('bulk')}>
             <Layers size={16} /> Batch Processing
         </div>
+        <div className={`mode-option ${mode === 'history' ? 'active' : ''}`} onClick={() => setMode('history')}>
+            <Clock size={16} /> History
+        </div>
       </div>
 
       <div className="card main-card">
@@ -513,6 +560,63 @@ function App() {
                     {bulkFiles.length === 0 && <div className="empty-bulk">No files added yet.</div>}
                  </div>
             </div>
+        )}
+        {/* === HISTORY MODE === */}
+        {mode === 'history' && (
+          <div className="history-container fade-in">
+            <div className="history-header">
+                <h3>Processing History</h3>
+                <button className="icon-btn" onClick={fetchHistory} title="Refresh History"><RefreshCw size={16} /></button>
+            </div>
+
+            {historyLoading ? (
+                <div className="loading-state"><Loader2 className="spin" /> Loading History...</div>
+            ) : (
+                <div className="history-list">
+                    {history.map(item => (
+                        <div key={item.id} className={`history-item ${item.status}`}>
+                            <div className="history-main">
+                                {/* Thumbnail - Clicking opens the view */}
+                                <div className="history-icon" onClick={() => handleViewImageHistory(item)}>
+                                    {item.filename.endsWith('.pdf') ? (
+                                        <FileText size={20} color="#64748b"/>
+                                    ) : (
+                                        <img src={`${API_BASE}/api/v1/receipts/${item.id}/file`} alt=""/>
+                                    )}
+                                </div>
+                                
+                                {/* Data Info - Clicking opens the result modal */}
+                                <div className="history-info" onClick={() => item.status === 'completed' && setModalResult(item)}>
+                                    <div className="history-merchant">{item.merchant || item.filename}</div>
+                                    <div className="history-date">
+                                        {item.date || 'No Date'} • {new Date(item.created_at).toLocaleDateString()}
+                                    </div>
+                                </div>
+
+                                <div className="history-amount">
+                                    {item.total ? `$${item.total.toFixed(2)}` : '--'}
+                                </div>
+
+                                {/* ROW ACTIONS */}
+                                <div className="history-row-actions">
+                                    {/* View Original Receipt Button */}
+                                    <button className="icon-btn" onClick={() => handleViewImageHistory(item)} title="View Original">
+                                        <Eye size={18} />
+                                    </button>
+                                    
+                                    {/* View Extracted Data Button */}
+                                    {item.status === 'completed' && (
+                                        <button className="icon-btn success" onClick={() => setModalResult(item)} title="View Data">
+                                            <FileJson size={18} />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+          </div>
         )}
       </div>
     </div>

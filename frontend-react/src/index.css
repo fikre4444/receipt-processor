@@ -479,3 +479,106 @@ h1 {
     max-height: 90vh;
     overflow-y: auto;
 }
+
+.history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 1rem;
+}
+
+.history-item {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    transition: all 0.2s;
+}
+
+.history-item.completed:hover {
+    border-color: var(--primary);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    cursor: pointer;
+}
+
+.history-main {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    gap: 16px;
+}
+
+.history-icon {
+    width: 40px;
+    height: 40px;
+    background: #f1f5f9;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.history-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.history-info {
+    flex: 1;
+}
+
+.history-merchant {
+    font-weight: 600;
+    color: #1e293b;
+    font-size: 0.95rem;
+}
+
+.history-date {
+    font-size: 0.75rem;
+    color: #64748b;
+}
+
+.history-amount {
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.status-pill {
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: 99px;
+    text-transform: uppercase;
+    font-weight: 700;
+}
+
+.status-pill.completed { background: #dcfce7; color: #166534; }
+.status-pill.error { background: #fee2e2; color: #991b1b; }
+.status-pill.pending { background: #fef9c3; color: #854d0e; }
+
+.history-chevron {
+    color: #cbd5e1;
+}
+
+.history-row-actions {
+    display: flex;
+    gap: 8px;
+    margin-left: 10px;
+    padding-left: 10px;
+    border-left: 1px solid #e2e8f0;
+}
+
+.history-item.error {
+    border-left: 4px solid #ef4444;
+    opacity: 0.8;
+}
+
+.history-item.completed {
+    border-left: 4px solid #22c55e;
+}
+
+.history-icon:hover {
+    cursor: pointer;
+    opacity: 0.8;
+}

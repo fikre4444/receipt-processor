@@ -3,6 +3,7 @@ from app.core.config import settings
 from app.api.v1.endpoints import router as api_router
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.logging import setup_logging
+from app.db import init_db
 
 setup_logging()
 
@@ -29,6 +30,10 @@ app.add_middleware(
 
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
+@app.on_event("startup")
+def on_startup():
+    init_db()
 
 @app.get("/")
 def health_check():
