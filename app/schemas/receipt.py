@@ -1,9 +1,23 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional
 
+class LineItem(BaseModel):
+    description: str
+    amount: float
+
 class ReceiptData(BaseModel):
-    total: Optional[float] = None
+    merchant: str = "Unknown"
     date: Optional[str] = None
+    currency: str = "$"
+    
+    total: Optional[float] = None
+    subtotal: Optional[float] = None
+    tax: Optional[float] = None
+    tip: Optional[float] = None
+    discount: Optional[float] = None
+    
+    line_items: List[LineItem] = []
+    
     summary: Optional[str] = None
     raw_text: str
     tags: List[str] = []

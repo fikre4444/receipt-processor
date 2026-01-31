@@ -16,6 +16,7 @@ def extract_text_from_image(image: np.ndarray) -> str:
     """
     try:
         custom_config = r'--oem 3 --psm 4'
+        # custom_config = r'--oem 3 --psm 6 -c preserve_interword_spaces=1'
         
         text = pytesseract.image_to_string(image, config=custom_config)
         

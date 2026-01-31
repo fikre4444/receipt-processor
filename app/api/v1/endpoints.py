@@ -1,70 +1,104 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, status, Form
-import logging
-
-from app.schemas.receipt import ReceiptResponse
-from app.services import analysis_service, image_processing, ocr_engine, parser
-from app.services import llm_service
+from fastapi import APIRouter, UploadFile, File, HTTPException, Form
+import shutil
+import os
+import uuid
+from celery.result import AsyncResult
+from app.services.tasks import process_receipt_task
+from typing import List
 
 router = APIRouter()
-logger = logging.getLogger(__name__)
 
-@router.post("/process-receipt", response_model=ReceiptResponse)
+UPLOAD_DIR = os.getenv("UPLOAD_FOLDER", "/app/uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+@router.post("/process-receipt")
 async def process_receipt(file: UploadFile = File(...), generate_summary: bool = Form(False)):
     """
-    Accepts an image file (JPG/PNG), extracts text using OCR, 
-    and parses the Total Amount and Date.
+    Async Endpoint: Uploads file, pushes task to queue, returns Task ID immediately.
     """
 
-    logger.info(f"STARTING REQUEST: Processing file '{file.filename}' with AI={generate_summary}")
+    ALLOWED_TYPES = ["image/jpeg", "image/png", "image/jpg", "application/pdf"]
     
-    if file.content_type not in ["image/jpeg", "image/png", "image/jpg"]:
-        raise HTTPException(
+    if file.content_type not in ALLOWED_TYPES:
+         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid file type. Please upload a JPG or PNG image."
+            detail=f"Invalid file type. Allowed: JPG, PNG, PDF. Received: {file.content_type}"
         )
+    
+    # Save file to shared disk
+    unique_filename = f"{uuid.uuid4()}_{file.filename}"
+    file_path = os.path.join(UPLOAD_DIR, unique_filename)
+    
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
 
-    try:
-        file_bytes = await file.read()
+    # Trigger Celery Task( .delay() sends the message to RabbitMQ)
+    task = process_receipt_task.delay(file_path, generate_summary)
 
-        processed_image = image_processing.prepare_image(file_bytes)
+    # Return the Task ID
+    return {
+        "task_id": task.id,
+        "status": "Processing started",
+        "check_status_url": f"/api/v1/tasks/{task.id}"
+    }
 
-        raw_text = ocr_engine.extract_text_from_image(processed_image)
+@router.post("/process-receipt/bulk")
+async def process_bulk_receipts(
+    files: List[UploadFile] = File(...), 
+    generate_summary: bool = Form(False)
+):
+    """
+    Accepts multiple files, creates a task for each, returns a list of Task IDs.
+    """
+    
+    if len(files) > 20:
+        raise HTTPException(status_code=400, detail="Max 20 files allowed per batch.")
 
-        extracted_total = parser.extract_total(raw_text)
-        extracted_date = parser.extract_date(raw_text)
+    tasks = []
 
-        audit_tags = analysis_service.analyze_receipt(extracted_total, extracted_date)
+    for file in files:
+        # Validate type
+        if file.content_type not in ["image/jpeg", "image/png", "image/jpg", "application/pdf"]:
+            tasks.append({
+                "filename": file.filename,
+                "status": "error",
+                "error": "Invalid file type"
+            })
+            continue
 
-        summary_text = None
-
-        if generate_summary: 
-            summary_text = llm_service.generate_receipt_summary(
-                raw_text=raw_text,
-                total=extracted_total,
-                date=extracted_date
-            )
-        else:
-            logger.info("Skipping AI summary generation (user opted out).")
-
-        return {
-            "status": "success",
-            "data": {
-                "total": extracted_total,
-                "date": extracted_date,
-                "summary": summary_text,
-                "raw_text": raw_text,
-                "tags": audit_tags
-            }
-        }
-
-    except ValueError as e:
-        logger.error(f"Input Error: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+        unique_filename = f"{uuid.uuid4()}_{file.filename}"
+        file_path = os.path.join(UPLOAD_DIR, unique_filename)
         
-    except RuntimeError as e:
-        logger.error(f"System Error: {e}")
-        raise HTTPException(status_code=500, detail="OCR Engine failure.")
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        task = process_receipt_task.delay(file_path, generate_summary)
         
-    except Exception as e:
-        logger.error(f"Unexpected Error: {e}")
-        raise HTTPException(status_code=500, detail="Internal processing error.")
+        tasks.append({
+            "filename": file.filename,
+            "task_id": task.id,
+            "status": "queued"
+        })
+
+    return {"batch_id": str(uuid.uuid4()), "tasks": tasks}
+
+@router.get("/tasks/{task_id}")
+async def get_task_status(task_id: str):
+    """
+    Poll this endpoint to get the result.
+    """
+    task_result = AsyncResult(task_id)
+    
+    if task_result.state == 'PENDING':
+        return {"state": "PENDING", "status": "Task is waiting in queue..."}
+    
+    elif task_result.state == 'STARTED':
+        return {"state": "STARTED", "status": "Task is currently processing..."}
+    
+    elif task_result.state == 'SUCCESS':
+        return {"state": "SUCCESS", "result": task_result.result}
+    
+    elif task_result.state == 'FAILURE':
+        return {"state": "FAILURE", "error": str(task_result.info)}
+    
+    return {"state": task_result.state}
