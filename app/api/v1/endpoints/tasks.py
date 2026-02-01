@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 from celery.result import AsyncResult
+from app.core.celery_app import celery_app
 
 router = APIRouter()
 
@@ -8,7 +9,7 @@ async def get_task_status(task_id: str):
     """
     Poll this endpoint to get the result.
     """
-    task_result = AsyncResult(task_id)
+    task_result = AsyncResult(task_id, app=celery_app)
     
     if task_result.state == 'PENDING':
         return {"state": "PENDING", "status": "Task is waiting in queue..."}
