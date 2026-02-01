@@ -38,8 +38,7 @@ function App() {
     // Cleanup effect for URL previews (Fixed: Only run on unmount to avoid revoking active URLs)
     useEffect(() => {
         return () => {
-            // In a real app, you'd want to track all created URLs in a ref to clean them up properly on unmount.
-            // For now, we remove the aggressive per-render cleanup that was causing the regression.
+
         };
     }, []);
 
