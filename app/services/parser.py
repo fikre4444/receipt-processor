@@ -100,7 +100,8 @@ class FinancialParser:
             "subtotal": None, 
             "tax": None, 
             "discount": None, 
-            "tip": None
+            "tip": None,
+            "other_fees": None
         }
         
         total_keywords = ["total", "amount due", "grand total", "balance due", "payment", "grand amount"]
@@ -108,6 +109,7 @@ class FinancialParser:
         tax_keywords = ["tax", "vat", "gst", "hst", "sales tax"]
         tip_keywords = ["tip", "gratuity", "service charge", "svc chg"]
         discount_keywords = ["discount", "savings", "coupon", "promo", "credit"]
+        other_fees_keywords = ["fee", "charge", "surcharge", "extra", "convenience"]
 
         # Iterate lines backwards (Totals are usually at the bottom)
         for line in reversed(self.lines):
@@ -147,6 +149,13 @@ class FinancialParser:
             if not results["discount"] and any(k in lower_line for k in discount_keywords):
                 results["discount"] = val
                 continue
+            
+            # checking for Other Fees
+            if not results.get("other_fees") and any(k in lower_line for k in other_fees_keywords):
+                # Avoid confusing with currency or tip
+                if not any(k in lower_line for k in tip_keywords + total_keywords):
+                    results["other_fees"] = val
+                    continue
 
         if not results["total"]:
             all_floats = []
@@ -182,5 +191,6 @@ def parse_receipt(text: str) -> dict:
         "subtotal": financials["subtotal"],
         "tax": financials["tax"],
         "tip": financials.get("tip"),           
-        "discount": financials.get("discount")
+        "discount": financials.get("discount"),
+        "other_fees": financials.get("other_fees")
     }

@@ -28,7 +28,7 @@ services:
       context: .
       dockerfile: Dockerfile.dev
     container_name: receipt_worker
-    command: celery -A app.core.celery_app worker --loglevel=info
+    command: watchfiles "celery -A app.core.celery_app worker --loglevel=info" app
     volumes:
       - .:/code
       - receipt_uploads:/app/uploads

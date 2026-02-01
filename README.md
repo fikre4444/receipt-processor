@@ -1,108 +1,104 @@
-# Automated Receipt Processor
+# 🧾 Automated Receipt Processor
 
-A robust, full-stack internal tool designed to extract structured data (Total Amount, Date, Vendor) from receipt images. It features an automated **Date and Category Analysis** engine and an optional **GenAI** layer for contextual summarization.
+A professional, high-performance backend system for extracting and analyzing structured data from receipt images and PDFs. Built with a clean **Layered Architecture (Repository-Service Pattern)**, it leverages asynchronous task processing, OCR, and Large Language Models (LLMs) to provide deep financial insights.
 
-## 🚀 Project Overview
+---
 
-This service accepts image uploads (JPG/PNG), pre-processes them using OpenCV, extracts text via Tesseract OCR, and applies a multi-strategy Regex parser. It provides immediate visual feedback via a React frontend and returns actionable analysis tags (e.g., "High Value", "Future Date").
+## 🚀 Overview
+
+This service automates the tedious task of manual receipt entry. It pre-processes images using **OpenCV**, extracts raw text via **Tesseract OCR**, and uses a sophisticated **Regex-based Financial Parser** to identify key data points (Merchant, Date, Total, Tax, etc.). Extracted records are analyzed for suspicious patterns and can be summarized using **DeepSeek/Gemma** via the OpenRouter API.
+
+### 🏗 Architecture
+The project follows a modular, layered design for maximum maintainability:
+- **API Layer**: Thin controllers (FastAPI) utilizing Dependency Injection.
+- **Service Layer**: Pure business logic (OCR, LLM, Storage, Image Processing).
+- **Repository Layer**: Data access abstraction using SQLModel and AsyncSession.
+- **Async Processing**: Distributed task queue for long-running vision/AI jobs.
+
+---
 
 ## 🛠 Tech Stack
 
-*   **Backend:** FastAPI (Python 3.11), Uvicorn
-*   **Core Logic:** OpenCV (Image Processing), Tesseract (OCR), Regex (Parsing), Pydantic (Validation)
-*   **Frontend:** React, Vite, Standard CSS
-*   **AI/LLM:** OpenRouter API (DeepSeek/Gemma)
-*   **Infrastructure:** Docker, Docker Compose (Dev & Prod), Nginx
-*   **CI/CD:** GitHub Actions (Automated Build & Deploy)
-*   **Testing:** Pytest, HTTPX
+- **Backend**: [FastAPI](https://fastapi.tiangolo.com/) (Python 3.11)
+- **Database**: [PostgreSQL](https://www.postgresql.org/) with [SQLModel](https://sqlmodel.tiangolo.com/) (Async)
+- **Task Queue**: [Celery](https://docs.celeryq.dev/) with [RabbitMQ](https://www.rabbitmq.com/) (Broker) & [Redis](https://redis.io/) (Backend)
+- **Object Storage**: [MinIO](https://min.io/) (S3-Compatible)
+- **Vision/AI**: [OpenCV](https://opencv.org/), [Tesseract OCR](https://github.com/tesseract-ocr/tesseract), [OpenRouter API](https://openrouter.ai/)
+- **Infrastructure**: Docker & Docker Compose
+- **Frontend**: React (Vite)
+
+---
 
 ## ✨ Key Features
 
-1.  **Robust OCR Pipeline:** Uses Grayscale and Otsu's Thresholding to handle noisy images.
-2.  **Smart Parsing Logic:**
-    *   **Total/Date:** Prioritizes context labels ("Total:", "Date:") with regex fallbacks.
-    *   **Analysis Service:** Automatically flags receipts (e.g., `HIGH_VALUE`, `OLD_RECEIPT`, `MISSING_DATA`) using business logic defined in `analysis_service.py`.
-3.  **Opt-in AI Analysis:** Users can enable LLM analysis to categorize expenses and summarize items. *Default is False to prioritize low latency.*
-4.  **Production Architecture:** Multi-stage Docker builds using Nginx for the frontend and optimized Python images for the backend.
-5.  **CI/CD Pipeline:** Fully automated deployment to Docker Hub, Railway/Render (Backend), and GitHub Pages (Frontend).
+1.  **Repository-Service Pattern**: Decoupled data access and business logic for better testability and clean code.
+2.  **Robust OCR Pipeline**: Automated image pre-processing (Grayscale + Otsu's Thresholding) for high-accuracy extraction.
+3.  **Distributed Processing**: Background tasks ensure the API remains responsive while heavy OCR and LLM jobs process in the queue.
+4.  **Async/Await First**: Asynchronous database and storage operations for high concurrency.
+5.  **Smart Financial Parser**: Multi-strategy extraction including labeled search and value-based fallbacks.
+6.  **Expense Analysis**: Automated tagging (e.g., `HIGH_VALUE`, `WEEKEND_EXPENSE`, `FUTURE_DATE`).
+7.  **Auto-Reload**: Full hot-reloading for both the API and Celery workers during development.
 
 ---
 
 ## 📂 Project Structure
 
 ```text
-receipt-processor/
-├── .github/workflows/      # CI/CD Configuration
-│   └── deploy.yml          # GitHub Actions Pipeline
-├── app/
-│   ├── api/                # API Route Controllers
-│   ├── core/               # Configuration & Logging
-│   ├── schemas/            # Pydantic Models
-│   ├── services/
-│   │   ├── analysis_service.py # Analysis Logic
-│   │   ├── image_processing.py # OpenCV Logic
-│   │   ├── llm_service.py      # OpenRouter/LLM Integration
-│   │   ├── ocr_engine.py       # Tesseract Wrapper
-│   │   └── parser.py           # Regex Extraction Logic
-│   └── main.py             # App Entry Point
-├── frontend-react/
-│   ├── src/                # React Components
-│   ├── Dockerfile.dev      # Node.js Dev Server
-│   └── Dockerfile.prod     # Nginx Static Server (Multi-stage)
-├── tests/                  # Unit & Integration Tests
-├── Dockerfile.dev          # Backend Dev (Hot Reload)
-├── Dockerfile.prod         # Backend Prod (Optimized)
-├── docker-compose.dev.yml  # Local Development Orchestration
-├── docker-compose.prod.yml # Local Production Simulation
-└── requirements.txt        # Python Dependencies
+app/
+├── api/                # API controllers & Dependency Injection
+│   ├── v1/
+│   │   └── endpoints/  # Split by resource (receipts, tasks)
+│   └── dependencies.py # Service/Repo providers
+├── core/               # Configuration, Celery app, & Logging
+├── models/             # Database schemas (SQLModel)
+├── repositories/       # Data access layer (CRUD)
+├── services/           # Business logic (OCR, LLM, Storage, Tasks)
+├── schemas/            # Pydantic DTOs
+├── db.py               # Database engine & session management
+└── main.py             # FastAPI entry point
 ```
 
 ---
 
-## ⚙️ Prerequisites
+## ⚙️ Development Setup
 
-*   **Docker** & **Docker Compose**
-*   **Git**
-*   *For Deployment:* Docker Hub Account, Railway/Render Account.
+### 1. Prerequisites
+- Docker & Docker Compose
+- [OpenRouter API Key](https://openrouter.ai/keys) (Optional, for LLM summaries)
+
+### 2. Configuration
+Create a `.env` file in the root:
+```env
+DATABASE_URL=postgresql://user:password@db:5432/receipts_app
+CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+CELERY_RESULT_BACKEND=redis://redis:6379/0
+S3_ENDPOINT=http://storage:9000
+S3_KEY=minioadmin
+S3_SECRET=minioadmin
+OPENROUTER_API_KEY=your_key_here
+```
+
+### 3. Launching the System
+```bash
+# First time or when requirements.txt changes
+docker compose -f docker-compose.dev.yml up --build
+
+# Subsequent runs
+docker compose -f docker-compose.dev.yml up
+```
+
+- **Frontend**: `http://localhost:5173`
+- **Backend Docs**: `http://localhost:8000/docs`
+- **MinIO Console**: `http://localhost:9001` (admin/minioadmin)
+- **RabbitMQ Console**: `http://localhost:15672` (guest/guest)
 
 ---
 
-## 🚀 Running Locally
+## 🔄 Development Workflow
 
-This provides two distinct environments for running the application locally.
-
-### 1. Development Mode (Hot Reload)
-*Best for coding. Changes to files update the app instantly.*
-
-1.  **Configure Environment:**
-    Create a `.env` file in the root:
-    ```env
-    OPENROUTER_API_KEY=your_key_here
-    OPENROUTER_MODEL=google/gemma-2-27b-it:free
-    ```
-
-2.  **Run with Docker Compose:**
-    ```bash
-    docker-compose -f docker-compose.dev.yml up --build
-    ```
-
-3.  **Access:**
-    *   Frontend: `http://localhost:5173`
-    *   Backend Docs: `http://localhost:8000/docs`
-
-### 2. Production Simulation
-*Best for testing the final build artifact (Nginx + Uvicorn) before deployment.*
-
-This uses `Dockerfile.prod` files. The frontend is compiled to static HTML and served via Nginx on Port 80. The backend runs without hot-reload.
-
-1.  **Run Production Compose:**
-    ```bash
-    docker-compose -f docker-compose.prod.yml up --build
-    ```
-
-2.  **Access:**
-    *   Frontend: `http://localhost` (Standard HTTP Port 80)
-    *   Backend: Internal container network on Port 8000.
+- **Hot Reload**: The system monitors files in the `app/` directory. Changes to API code will trigger a Uvicorn reload, and changes to service/task code will trigger a Celery worker restart (via `watchfiles`).
+- **Database Migrations**: Tables are automatically created on startup via `init_db()`.
+- **Storage**: Files are uploaded to MinIO and processed asynchronously.
 
 ---
 
@@ -111,66 +107,53 @@ This uses `Dockerfile.prod` files. The frontend is compiled to static HTML and s
 The project uses **GitHub Actions** located in `.github/workflows/deploy.yml`.
 
 ### Workflow Steps:
-1.  **Push to Main:** Triggers the pipeline.
-2.  **Backend Job:**
+1.  **Push to Main**: Triggers the pipeline.
+2.  **Backend Job**:
     *   Builds `Dockerfile.prod`.
     *   Pushes image to **Docker Hub**.
     *   Triggers **Railway** (or Render) to pull the new image and redeploy.
-3.  **Frontend Job:**
+3.  **Frontend Job**:
     *   Installs dependencies and runs `npm run build`.
     *   Injects the live Backend URL via `VITE_API_URL`.
     *   Deploys the static `dist/` folder to **GitHub Pages**.
-
-### Required GitHub Secrets:
-To activate this, add the following to Repository Settings > Secrets:
-*   `DOCKERHUB_USERNAME` / `DOCKERHUB_PASSWORD`
-*   `RAILWAY_TOKEN` (or Deploy Hook URL)
-*   `VITE_API_URL` (The live URL of your deployed backend, e.g., `https://api.your-app.com`)
 
 ---
 
 ## 🧠 Architectural Decisions
 
-### Why Tesseract vs. EasyOCR?
+### Repository-Service Pattern
+I migrated from a flat service structure to a layered Repository-Service pattern.
+- **Why?**: This decouples the database engine (SQLModel) from the business logic. It allows us to swap databases or mock repositories easily for testing without touching the core services.
+
+### Asynchronous Distributed Tasks
+All OCR and LLM processing is moved to **Celery**.
+- **Reasoning**: Vision and AI tasks are compute-heavy and high-latency. Processing them within the FastAPI request lifecycle would cause timeouts and block other users. Celery allows the system to scale workers independently based on load.
+
+### S3-Compatible Storage (MinIO)
+I moved away from local file storage to **MinIO**.
+- **Reasoning**: Local storage doesnt scale horizontally. By using an S3-compatible service, the backend becomes stateless, allowing multiple API or worker containers to share the same object store.
+
+### Tesseract vs. EasyOCR
 I chose **Tesseract** over EasyOCR for this implementation:
-*   **CPU Efficiency:** EasyOCR relies on PyTorch and is optimized for GPUs. For a standard CPU-based microservice, Tesseract is significantly faster and lighter.
-*   **Docker Image Size:** Tesseract binaries keep the image size manageable, whereas PyTorch dependencies can bloat images to >2GB.
+- **CPU Efficiency**: EasyOCR relies on PyTorch and is optimized for GPUs. For a standard CPU-based microservice, Tesseract is significantly faster and lighter.
+- **Docker Image Size**: Tesseract binaries keep the image size manageable, whereas PyTorch dependencies can bloat images to >2GB.
 
-### The Regex Strategy
-Receipts are unstructured. Our parser (`parser.py`) uses a tiered strategy:
-1.  **Contextual Search:** Looks for specific anchors like "Total:", "Amount Due".
-2.  **Fallback:** If anchors are missing, it scans for the largest currency-formatted number.
-3.  **Date Parsing:** Uses `dateparser` to normalize formats like "Oct 15, 2023" or "10/15/23" into ISO 8601.
-
-### LLM Integration (Opt-In)
-I integrated Generative AI via OpenRouter to categorize expenses.
-*   **Reasoning:** This feature is **False by default**. LLM calls introduce network latency (1-3s). I prioritize the instant OCR response and allow the user to "Enable AI Analysis" only when they need deeper insights.
+### Tiered Regex Strategy
+Receipts are unstructured, so the parser (`parser.py`) uses a tiered approach:
+1.  **Contextual Search**: High-confidence matching for anchors like "Total:", "Total Amount".
+2.  **Fallback Extraction**: Identifies the largest currency-formatted number as the total if labels are missing or OCR is messy.
+3.  **Normalized Date Parsing**: Uses `dateparser` to safely handle varied global date formats.
 
 ---
 
 ## 🧪 Testing
 
-### Running Tests in Docker
-The most accurate way to test (ensures Tesseract is present):
-
 ```bash
-# Run all tests
+# Run tests within the container
 docker exec -it receipt_api_dev pytest
-
-# Run specific integration tests
-docker exec -it receipt_api_dev pytest tests/test_api.py
-```
-
-### Running Tests Locally without docker (not preferred)
-Requires `tesseract` installed on your host machine.
-
-```bash
-pip install -r requirements.txt
-pytest
 ```
 
 ---
 
 ## 📄 License
-
 MIT License

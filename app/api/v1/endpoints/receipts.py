@@ -2,28 +2,32 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, Form, Depends, s
 import shutil
 import os
 import uuid
-from celery.result import AsyncResult
 from typing import List
-from sqlmodel import Session, select
 from fastapi.responses import StreamingResponse
 import io
-from app.services.tasks import process_receipt_task
-from app.models.receipt_db import Receipt
-from app.db import get_session
-from app.services.storage_service import storage_service
 import mimetypes
+
+from app.models.receipt_db import Receipt
+from app.repositories.receipt import ReceiptRepository
+from app.services.storage import StorageService
+from app.api.dependencies import get_receipt_repository, get_storage_service
+from app.services.tasks import process_receipt_task
 
 router = APIRouter()
 
 UPLOAD_DIR = os.getenv("UPLOAD_FOLDER", "/app/uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-@router.post("/process-receipt")
-async def process_receipt(file: UploadFile = File(...), generate_summary: bool = Form(False), session: Session = Depends(get_session)):
+@router.post("/process-receipt", status_code=status.HTTP_201_CREATED)
+async def process_receipt(
+    file: UploadFile = File(...), 
+    generate_summary: bool = Form(False), 
+    receipt_repo: ReceiptRepository = Depends(get_receipt_repository),
+    storage_service: StorageService = Depends(get_storage_service)
+):
     """
     Async Endpoint: Uploads file, pushes task to queue, returns Task ID immediately.
     """
-
     ALLOWED_TYPES = ["image/jpeg", "image/png", "image/jpg", "application/pdf"]
     
     if file.content_type not in ALLOWED_TYPES:
@@ -36,14 +40,16 @@ async def process_receipt(file: UploadFile = File(...), generate_summary: bool =
     unique_filename = f"{temp_id}_{file.filename}"
     local_path = os.path.join(UPLOAD_DIR, unique_filename)
     
-    with open(local_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    try:
+        with open(local_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
 
-    # Upload to MinIO
-    s3_key = f"uploads/{unique_filename}"
-    storage_service.upload_file(local_path, s3_key)
-    if os.path.exists(local_path):
-        os.remove(local_path)
+        # Upload to MinIO
+        s3_key = f"uploads/{unique_filename}"
+        storage_service.upload_file(local_path, s3_key)
+    finally:
+        if os.path.exists(local_path):
+            os.remove(local_path)
 
     # Trigger Task
     task = process_receipt_task.delay(s3_key, generate_summary)
@@ -55,29 +61,26 @@ async def process_receipt(file: UploadFile = File(...), generate_summary: bool =
         s3_key=s3_key,
         status="pending"
     )
-    session.add(db_receipt)
-    session.commit()
+    await receipt_repo.create(db_receipt)
 
     return {"task_id": task.id, "status": "Processing"}
 
-
-@router.post("/process-receipt/bulk")
+@router.post("/process-receipt/bulk", status_code=status.HTTP_201_CREATED)
 async def process_bulk_receipts(
     files: List[UploadFile] = File(...), 
     generate_summary: bool = Form(False),
-    session: Session = Depends(get_session)
+    receipt_repo: ReceiptRepository = Depends(get_receipt_repository),
+    storage_service: StorageService = Depends(get_storage_service)
 ):
     """
     Accepts multiple files, creates a task for each, returns a list of Task IDs.
     """
-    
     if len(files) > 20:
         raise HTTPException(status_code=400, detail="Max 20 files allowed per batch.")
 
     tasks = []
 
     for file in files:
-        # Validate type
         if file.content_type not in ["image/jpeg", "image/png", "image/jpg", "application/pdf"]:
             tasks.append({"filename": file.filename, "status": "error", "error": "Invalid file type"})
             continue
@@ -86,71 +89,50 @@ async def process_bulk_receipts(
         unique_filename = f"{temp_id}_{file.filename}"
         local_path = os.path.join(UPLOAD_DIR, unique_filename)
         
-        with open(local_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+        try:
+            with open(local_path, "wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
 
-        s3_key = f"uploads/{unique_filename}"
-        storage_service.upload_file(local_path, s3_key)
+            s3_key = f"uploads/{unique_filename}"
+            storage_service.upload_file(local_path, s3_key)
 
-        task = process_receipt_task.delay(s3_key, generate_summary)
-        
-        if os.path.exists(local_path):
-            os.remove(local_path)
+            task = process_receipt_task.delay(s3_key, generate_summary)
+            
+            db_receipt = Receipt(
+                task_id=task.id,
+                filename=file.filename,
+                s3_key=s3_key,
+                status="pending"
+            )
+            await receipt_repo.create(db_receipt)
+            
+            tasks.append({
+                "filename": file.filename,
+                "task_id": task.id,
+                "status": "queued"
+            })
+        finally:
+            if os.path.exists(local_path):
+                os.remove(local_path)
 
-        db_receipt = Receipt(
-            task_id=task.id,
-            filename=file.filename,
-            s3_key=s3_key,
-            status="pending"
-        )
-        session.add(db_receipt)
-        
-        tasks.append({
-            "filename": file.filename,
-            "task_id": task.id,
-            "status": "queued"
-        })
-
-    session.commit()
     return {"batch_id": str(uuid.uuid4()), "tasks": tasks}
 
-@router.get("/tasks/{task_id}")
-async def get_task_status(task_id: str):
-    """
-    Poll this endpoint to get the result.
-    """
-    task_result = AsyncResult(task_id)
-    
-    if task_result.state == 'PENDING':
-        return {"state": "PENDING", "status": "Task is waiting in queue..."}
-    
-    elif task_result.state == 'STARTED':
-        return {"state": "STARTED", "status": "Task is currently processing..."}
-    
-    elif task_result.state == 'SUCCESS':
-        return {"state": "SUCCESS", "result": task_result.result}
-    
-    elif task_result.state == 'FAILURE':
-        return {"state": "FAILURE", "error": str(task_result.info)}
-    
-    return {"state": task_result.state}
-
 @router.get("/receipts/history")
-async def get_history(session: Session = Depends(get_session)):
-    return session.exec(select(Receipt).order_by(Receipt.created_at.desc())).all()
-
+async def get_history(receipt_repo: ReceiptRepository = Depends(get_receipt_repository)):
+    return await receipt_repo.get_history()
 
 @router.get("/receipts/{receipt_id}/file")
-async def get_receipt_file(receipt_id: int, session: Session = Depends(get_session)):
-    receipt = session.get(Receipt, receipt_id)
+async def get_receipt_file(
+    receipt_id: int, 
+    receipt_repo: ReceiptRepository = Depends(get_receipt_repository),
+    storage_service: StorageService = Depends(get_storage_service)
+):
+    receipt = await receipt_repo.get(receipt_id)
     if not receipt:
         raise HTTPException(status_code=404, detail="Receipt not found")
 
     try:
-        response = storage_service.s3.get_object(
-            Bucket=storage_service.bucket, 
-            Key=receipt.s3_key
-        )
+        response = storage_service.get_object(receipt.s3_key)
         
         content_type = response.get('ContentType')
         if not content_type or content_type == 'application/octet-stream':
