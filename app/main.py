@@ -5,21 +5,21 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.logging import setup_logging
 from app.db import init_db
 
-from contextlib import asynccontextmanager
+# from contextlib import asynccontextmanager
 
 setup_logging()
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Runs on startup (async-safe)
-    await init_db()
-    yield
+# @asynccontextmanager
+# async def lifespan(app: FastAPI):
+#     # Runs on startup (async-safe)
+#     await init_db()
+#     yield
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
     description="API for extracting date and total from receipt images.",
-    version="1.0.0",
-    lifespan=lifespan
+    version="1.0.0"
+    # lifespan=lifespan
 )
 
 # For Cors Policy
@@ -38,9 +38,9 @@ app.add_middleware(
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
-# @app.on_event("startup")
-# def on_startup():
-#     init_db()
+@app.on_event("startup")
+def on_startup():
+    init_db()
 
 @app.get("/")
 def health_check():

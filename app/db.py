@@ -8,11 +8,11 @@ from sqlmodel import SQLModel, Session, create_engine
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@db:5432/receipts_app")
 # Convert to asyncpg driver if not already specified
-# ASYNC_DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
+ASYNC_DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
 
-ASYNC_DATABASE_URL = (
-    DATABASE_URL if "asyncpg" in DATABASE_URL else DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
-)
+# ASYNC_DATABASE_URL = (
+#     DATABASE_URL if "asyncpg" in DATABASE_URL else DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
+# )
 
 # Async Engine and Session
 async_engine = create_async_engine(ASYNC_DATABASE_URL, echo=False, future=True)
@@ -64,6 +64,6 @@ def get_sync_session_context() -> Generator[Session, None, None]:
 
 async def init_db() -> None:
     """Create tables if they don't exist. Typically run on startup."""
-    # SQLModel.metadata.create_all(sync_engine)
-    async with async_engine.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.create_all)
+    SQLModel.metadata.create_all(sync_engine)
+    # async with async_engine.begin() as conn:
+    #     await conn.run_sync(SQLModel.metadata.create_all)
