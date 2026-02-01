@@ -9,7 +9,7 @@ A professional, high-performance backend system for extracting and analyzing str
 This service automates the tedious task of manual receipt entry. It pre-processes images using **OpenCV**, extracts raw text via **Tesseract OCR**, and uses a sophisticated **Regex-based Financial Parser** to identify key data points (Merchant, Date, Total, Tax, etc.). Extracted records are analyzed for suspicious patterns and can be summarized using **DeepSeek/Gemma** via the OpenRouter API.
 
 ### 🏗 Architecture
-The project follows a modular, layered design for maximum maintainability:
+The project follows a modular, layered design for maximum maintainability. For a detailed breakdown of components, data flow, and sequence diagrams, see the **[Architecture Documentation](ARCHITECTURE.md)**.
 - **API Layer**: Thin controllers (FastAPI) utilizing Dependency Injection.
 - **Service Layer**: Pure business logic (OCR, LLM, Storage, Image Processing).
 - **Repository Layer**: Data access abstraction using SQLModel and AsyncSession.
