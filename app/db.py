@@ -62,7 +62,7 @@ def get_sync_session_context() -> Generator[Session, None, None]:
         finally:
             session.close()
 
-async def init_db() -> None:
+def init_db() -> None:
     """Create tables if they don't exist. Typically run on startup."""
     SQLModel.metadata.create_all(sync_engine)
     # async with async_engine.begin() as conn:
