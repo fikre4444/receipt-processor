@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     SITE_URL: str = "http://localhost:8000"
     SITE_NAME: str = "ReceiptProcessor"
 
+    BACKEND_CORS_ORIGINS: list[str] = ["http://localhost", "http://localhost:5173", "http://localhost:8000", "http://127.0.0.1"]
+
     class Config:
         env_file = ".env"
         case_sensitive = True

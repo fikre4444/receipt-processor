@@ -13,12 +13,10 @@ app = FastAPI(
     version="1.0.0"
 )
 
-#For Cors Policy
-origins = [
-    "http://localhost:5173",
-    "https://*.github.io",     # Allow GitHub Pages
-    "*"
-]
+# For Cors Policy
+origins = [str(origin) for origin in settings.BACKEND_CORS_ORIGINS]
+if "https://*.github.io" not in origins:
+    origins.append("https://*.github.io")
 
 app.add_middleware(
     CORSMiddleware,

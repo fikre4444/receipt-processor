@@ -8,7 +8,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
       POSTGRES_DB: ${POSTGRES_DB:-receipts_app}
     volumes:
       - postgres_prod_data:/var/lib/postgresql/data
@@ -68,12 +68,12 @@ services:
     container_name: receipt_api_prod
     restart: unless-stopped
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-receipts_app}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-receipts_app}
       - CELERY_BROKER_URL=amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672//
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - S3_ENDPOINT=http://storage:9000
-      - S3_KEY=${MINIO_ROOT_USER}
-      - S3_SECRET=${MINIO_ROOT_PASSWORD}
+      - S3_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - S3_SECRET=${MINIO_ROOT_PASSWORD:-minioadmin}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - OPENROUTER_MODEL=${OPENROUTER_MODEL}
       - BACKEND_CORS_ORIGINS=${BACKEND_CORS_ORIGINS}
@@ -99,12 +99,12 @@ services:
     restart: unless-stopped
     command: celery -A app.core.celery_app worker --loglevel=info
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-receipts_app}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-receipts_app}
       - CELERY_BROKER_URL=amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672//
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - S3_ENDPOINT=http://storage:9000
-      - S3_KEY=${MINIO_ROOT_USER}
-      - S3_SECRET=${MINIO_ROOT_PASSWORD}
+      - S3_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - S3_SECRET=${MINIO_ROOT_PASSWORD:-minioadmin}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - OPENROUTER_MODEL=${OPENROUTER_MODEL}
       - TESSERACT_PATH=/usr/bin/tesseract
